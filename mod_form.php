@@ -112,11 +112,7 @@ class mod_teletask_mod_form extends moodleform_mod {
 
         // Intro.
         $mform->addElement('header', 'Intro', get_string('intro', 'teletask'));
-        if ($CFG->version < 2015051100) {
-            $this->add_intro_editor(false, get_string('intro', 'teletask'));
-        } else {
-            $this->standard_intro_elements(get_string('intro', 'teletask'));
-        }
+        $this->standard_intro_elements(get_string('intro', 'teletask'));
 
         $this->standard_coursemodule_elements();
 

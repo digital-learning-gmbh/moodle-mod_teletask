@@ -157,3 +157,45 @@ function teletask_supports($feature) {
             return null;
     }
 }
+
+/**
+ * Returns course module info for the course page (Moodle 4.x+).
+ * @param object $coursemodule
+ * @return cached_cm_info|null
+ */
+function teletask_get_coursemodule_info($coursemodule) {
+    // Stub for Moodle 4.x compatibility. Add custom summary or icon if needed.
+    return null;
+}
+
+/**
+ * Allows dynamic modification of the course module info (Moodle 4.x+).
+ * @param cm_info $cm
+ */
+function teletask_cm_info_dynamic(cm_info $cm) {
+    // Stub for Moodle 4.x compatibility. Add dynamic info if needed.
+}
+
+/**
+ * Called when viewing the activity (Moodle 4.x+).
+ * @param cm_info $cm
+ */
+function teletask_cm_info_view(cm_info $cm) {
+    // Stub for Moodle 4.x compatibility. Add view tracking if needed.
+}
+
+/**
+ * File serving support for the module (Moodle 4.x+).
+ * @param stdClass $course
+ * @param stdClass $cm
+ * @param stdClass $context
+ * @param string $filearea
+ * @param array $args
+ * @param bool $forcedownload
+ * @param array $options
+ * @return bool
+ */
+function teletask_pluginfile($course, $cm, $context, $filearea, $args, $forcedownload, array $options = array()) {
+    // Stub for Moodle 4.x compatibility. Implement if you need to serve files.
+    return false;
+}
