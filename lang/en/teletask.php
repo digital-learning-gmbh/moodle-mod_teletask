@@ -54,3 +54,6 @@ $string['videouploadrestriction'] = 'Your browser does not have Flash, Silverlig
 $string['videouploadselect'] = 'Select tele-TASK moodle file (ttpp)';
 $string['videourldesktop'] = 'tele-TASK video url desktop video';
 $string['videourlspeaker'] = 'tele-TASK video url speaker video';
+
+$string['videourlpip'] = 'tele-TASK Video URL (PiP)'; // For the new PiP URL field
+$string['description_new'] = 'Additional Description'; // For the new rich text editor

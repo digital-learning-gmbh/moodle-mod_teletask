@@ -18,6 +18,10 @@
         <FIELD NAME="grade" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
 		<FIELD NAME="intro" TYPE="text" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="introformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="intro text field format"/>
+<FIELD NAME="video_url_pip" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="url to PiP video"/>
+<FIELD NAME="description_new" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="additional description text"/>
+    <FIELD NAME="description_newformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="additional description text format"/>
+
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>

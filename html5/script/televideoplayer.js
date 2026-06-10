@@ -1,7 +1,7 @@
 require.config({
     baseUrl: MEDIA_URL + "html5/script",
     paths : {
-        jquery : "vendor/jquery-1.8.3.min"
+        jquery : "libs/jquery-1.8.3.min"
     },
     shim: {
       'jquery-deparam': {

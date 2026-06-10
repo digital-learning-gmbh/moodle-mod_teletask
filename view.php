@@ -15,167 +15,111 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * 
- * File to view a teletask recording.
- * 
+ * Displays a teletask recording using the modern XMF player.
+ *
  * @package   mod_teletask
  * @copyright 2015 Martin Malchow - Hasso Plattner Institute (HPI) {http://www.hpi.de}
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-require_once('../../config.php');
-require_once('lib.php');
-require_once($CFG->libdir . '/completionlib.php');
+require_once(__DIR__ . '/../../config.php');
+require_once(__DIR__ . '/lib.php');
 
-$id         = required_param('id', PARAM_INT);                          // Course Module ID.
-$action     = optional_param('action', '', PARAM_ALPHA);
-$attemptids = optional_param_array('attemptid', array(), PARAM_INT);    // Array of attempt ids for delete action.
-$notify     = optional_param('notify', '', PARAM_ALPHA);
+// --- 1. Moodle Setup: Get parameters and load records ---
+$id = required_param('id', PARAM_INT); // Course Module ID.
 
-$url = new moodle_url('/mod/teletask/view.php', array('id' => $id));
-if ($action !== '') {
-    $url->param('action', $action);
-}
+list($course, $cm) = get_course_and_cm_from_cmid($id, 'teletask');
+$teletask = $DB->get_record('teletask', ['id' => $cm->instance], '*', MUST_EXIST);
+
+$url = new moodle_url('/mod/teletask/view.php', ['id' => $id]);
 $PAGE->set_url($url);
+$PAGE->set_title(format_string($teletask->name));
+$PAGE->set_heading(format_string($course->fullname));
 
-if (!$cm = get_coursemodule_from_id('teletask', $id)) {
-    print_error(get_string('incorrectcoursemoduleid', 'teletask'));
-}
-if (!$course = $DB->get_record('course', array('id' => $cm->course))) {
-    print_error(get_string('misconfigured', 'teletask'));
-}
+// --- 2. Security and Context Setup ---
+require_login($course, false, $cm);
+$context = context_module::instance($cm->id);
+$PAGE->set_context($context);
 
-require_course_login($course, false, $cm);
-
-if (!$teletask = $DB->get_record('teletask', array('id' => $cm->instance))) {
-    print_error(get_string('incorrectcoursemodule', 'teletask'));
-}
-
-$PAGE->set_title($teletask->name);
-$PAGE->set_heading($course->fullname);
-
-$teletaskvideoproxyscript = 'serve_video_proxy.php?id='.$id.'&type=';
-
-// Handle Video URL ... local or extern.
-if (strpos($teletask->video_url_speaker, '//') === false) {
-    $teletask->video_url_speaker = $teletaskvideoproxyscript.'speaker';
-}
-if (strpos($teletask->video_url_desktop, '//') === false && !empty($teletask->video_url_desktop)) {
-    $teletask->video_url_desktop = $teletaskvideoproxyscript.'desktop';
+// --- 3. Activity Completion ---
+if (class_exists('\core_completion\api') && method_exists(\core_completion\api::class, 'viewed')) {
+    \core_completion\api::viewed($cm);
+} else {
+    if (!empty($cm->completionview)) {
+        require_once($CFG->libdir . '/completionlib.php');
+        $completion = new completion_info($course);
+        if ($completion->is_enabled($cm)) {
+$completion = new completion_info($course);
+$completion->set_module_viewed($cm);
+//  $completion->update_state($cm, COMPLETION_STATE_COMPLETE);        
+ //   completion_update_state($cm, COMPLETION_STATE_COMPLETE);
+        }
+    }
 }
 
-// Handle Sections.
-// HTML5.
-$html5sections = '';
-$teletasksections = $DB->get_records_sql('SELECT * FROM {teletask_sections} WHERE video_id = ? ORDER BY time',
-        array($teletask->id));
+// --- 4. Prepare all data for the template ---
+$templatecontext = new stdClass();
+$templatecontext->name = format_string($teletask->name, true, ['context' => $context]);
 
-foreach ($teletasksections as $section) {
-    $html5sections .= '<li data-start="'.$section->time.'" data-thumb="">'.$section->name.'</li>';
+// Prepare text content for display. format_text() is crucial for security and applying filters.
+$templatecontext->intro = format_text($teletask->intro, FORMAT_HTML, ['context' => $context, 'noclean' => true]);
+
+if (!empty($teletask->description_new)) {
+    $templatecontext->description_new = format_text($teletask->description_new, $teletask->description_newformat, ['context' => $context, 'noclean' =>true]);
 }
 
+// Helper function to extract Vimeo video ID from various URL formats.
+$extract_vimeo_id = function($url) {
+    if (empty($url) || !is_string($url)) {
+        return '';
+    }
+    if (ctype_digit($url)) {
+        return $url;
+    }
+    if (preg_match('/(\d+)\/?$/', $url, $matches)) {
+        return $matches[1];
+    }
+    return '';
+};
+
+// Helper to resolve local paths OR extract Vimeo ID from external URLs.
+$resolve_video_source = function($url, $type) use ($id, $extract_vimeo_id) {
+    if (empty($url)) {
+        return '';
+    }
+    if (strpos($url, '//') !== false) {
+        return $extract_vimeo_id($url);
+    }
+    $proxyurl = new moodle_url('/mod/teletask/serve_video_proxy.php', ['id' => $id, 'type' => $type]);
+    return $proxyurl->out(false);
+};
+
+// Prepare video sources for the player.
+$templatecontext->media_url = (new moodle_url('/mod/teletask/'))->out(false);
+$templatecontext->video_url_speaker = $resolve_video_source($teletask->video_url_speaker, 'speaker');
+$templatecontext->video_url_desktop = $resolve_video_source($teletask->video_url_desktop, 'desktop');
+$templatecontext->has_desktop_video = !empty($templatecontext->video_url_desktop);
+
+$pipurl = '';
+if (isset($teletask->video_url_pip)) {
+    $pipurl = $resolve_video_source($teletask->video_url_pip, 'pip');
+}
+$templatecontext->video_url_pip = $pipurl;
+$templatecontext->has_pip_video = !empty($pipurl);
+
+// Dynamically build the reference for the presentation component.
+$presentation_reference = 'lecturer';
+if ($templatecontext->has_desktop_video) {
+    $presentation_reference .= ',slides';
+}
+$templatecontext->presentation_reference = $presentation_reference;
+
+
+// --- 5. Render the final page ---
 echo $OUTPUT->header();
-echo $OUTPUT->heading(format_string($teletask->name), 2, null);
+// echo $OUTPUT->heading($templatecontext->name);
 
-echo '
-  <!-- Begin HTML5 player -->
-  <link rel="stylesheet" type="text/css" href="html5/css/font-awesome.min.css">
-  <link rel="stylesheet" href="html5/css/player.css">
-  <script>
-	  /*@cc_on document.documentElement.className +=\'ie\';@*/ // detect whether user is using internetexplorer
-  </script>
-
-  <div id="content">
-	<div class="televideoplayer">
-	  <div class="videoPlayer">
-
-	  <div class="videoPlayerInner">
-		<div class="main clearfix">
-		  <div class="spinner">
-			  <i class="fa fa-spin fa-spin-fast fa-spinner"></i>
-		  </div>
-		  <div class="videoContainer speaker">
-			<video class="speaker" autoplay>
-			  <source src="'.$teletask->video_url_speaker.'" type="video/mp4" autobuffer>
-			</video>
-			<div class="aspectRatio speaker">4:3</div>
-		  </div>';
-if ($teletask->video_url_desktop != "") {
-                echo '<div class="videoContainer slides">
-				<video class="slides" autoplay>
-				  <source src="'.$teletask->video_url_desktop.'" type="video/mp4" autobuffer>
-				</video>
-				<div class="aspectRatio slides">4:3</div>
-				<!-- TODO <div id="link_overlay_container">
-				  {% for overlay in link_overlays %}
-				  <div class="link overlay" data-start="{{overlay.start}}" data-end="{{overlay.end}}" style="top: {{overlay.y}}%">
-					<a class="fill-div" href="{{ overlay.link}}" target="_blank">
-					  <span class="link_icon"></span>
-					</a>
-				  </div>
-				  {% endfor %}
-				</div>-->
-			  </div>
-			  <div class="resizer"></div>';
-}
-echo '<div class="chapterContent">
-			<div class="chapters">
-			  <ol>
-				  '.$html5sections.'
-			  </ol>
-			</div>
-		  </div>
-		</div>
-		<div class="controlsBox">
-		  <div class="controls">
-			<a class="play button pause"></a>
-			<div class="controlsRight">
-			  <div class="timer">0:00</div>
-			  <a class="playbackRate button">1.0x</a>
-			  <a class="chapter button"></a>
-			  <div class="volume-box clearfix">
-				<a class="mute button"></a>
-				<div class="sliding volume">
-				  <div class="slider"></div>
-				</div>
-			  </div>
-			  <a class="fullscreen button"></a>
-			</div>
-			<div class="seekers">
-			  <!-- TODO <ol class="slideContainer">
-				{% for slide in slides %}
-				  <li data-start="{{ slide.start }}">
-					<img src="{{ slide.path }}" alt="">
-				  </li>
-				{% endfor %}
-			  </ol>-->
-			  <div class="sliding seek">
-				<div class="buffer"></div>
-				<div class="slider"></div>
-			  </div>
-			</div>
-		  </div>
-		</div>
-	  </div>
-	  </div>
-	</div>
-  </div>
-
-  <!--[if lt IE 7]>
-	  <p class="chromeframe">You are using an outdated browser. '.
-      '<a href="http://browsehappy.com/">Upgrade your browser today</a> '.
-      'or <a href="http://www.google.com/chromeframe/?redirect=true">install Google Chrome Frame</a>'.
-      ' to better experience this site.</p>
-  <![endif]-->
-
-  <!-- Add your site or application content here -->
-  <!-- Make the MEDIA_URL variable available to Javascript -->
-  <script type="text/javascript">var MEDIA_URL = "";</script>
-  <script src="html5/script/vendor/require.js"></script>
-  <script src="html5/script/televideoplayer.js"></script>
-  <!-- End HTML5 player -->
-
-';
+// Pass the prepared data to the Mustache template for rendering.
+echo $OUTPUT->render_from_template('mod_teletask/view', $templatecontext);
 
 echo $OUTPUT->footer();
-die();

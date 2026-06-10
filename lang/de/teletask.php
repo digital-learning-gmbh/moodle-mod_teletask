@@ -54,3 +54,6 @@ $string['videouploadrestriction'] = 'Dein Browser unterstützt kein Flash, Silve
 $string['videouploadselect'] = 'Wähle eine tele-TASK Moodle (ttpp) aus';
 $string['videourldesktop'] = 'tele-TASK Video URL (Desktop)';
 $string['videourlspeaker'] = 'tele-TASK Video URL (Sprecher)';
+$string['videourlpip'] = 'tele-TASK Video URL (PiP)'; // For the new PiP URL field
+$string['description_new'] = 'Video-Beschreibung unter dem Video'; 
+

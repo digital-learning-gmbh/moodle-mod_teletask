@@ -15,9 +15,9 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * 
+ *
  * Libary for teletask module.
- * 
+ *
  * @package   mod_teletask
  * @copyright 2015 Martin Malchow - Hasso Plattner Institute (HPI) {http://www.hpi.de}
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -26,17 +26,36 @@
 defined('MOODLE_INTERNAL') || die();
 
 /**
- * Adds a teletask instance
+ * Adds a teletask instance.
  *
- * This is done by calling the add_instance() method of the assignment type class
- * @param stdClass $data
- * @param mod_assign_mod_form $form
- * @return int The instance id of the new assignment
+ * @param stdClass $teletask a data object from the form
+ * @param mod_teletask_mod_form $mform the form instance
+ * @return int The instance id of the new teletask
  */
-function teletask_add_instance($teletask) {
+function teletask_add_instance($teletask, $mform = null) {
     global $DB;
 
-    $teletask->timemodified = time();
+    $teletask->timecreated = time();
+    $teletask->timemodified = $teletask->timecreated;
+
+    // =========================================================================
+    // === KORREKTUR 1: Verarbeitet die Daten des Standard-Intro-Editors ===
+    // 'intro' kommt vom Formular als Array ['text' => ..., 'format' => ...].
+    // Wir teilen es für die Datenbank in die Felder 'intro' und 'introformat' auf.
+    if (isset($teletask->intro['text'])) {
+        $teletask->introformat = $teletask->intro['format'];
+        $teletask->intro = $teletask->intro['text'];
+    }
+
+    // =========================================================================
+    // === KORREKTUR 2: Verarbeitet die Daten des neuen 'description_new' Editors ===
+    // Genau die gleiche Logik wie für den Intro-Editor.
+    if (isset($teletask->description_new['text'])) {
+        $teletask->description_newformat = $teletask->description_new['format'];
+        $teletask->description_new = $teletask->description_new['text'];
+    }
+    // =========================================================================
+
 
     if (isset($_POST["sections"])) {
         $count = 0;
@@ -48,13 +67,15 @@ function teletask_add_instance($teletask) {
 
         $count = 0;
         $times = array();
-        foreach (required_param_array("sectiontimes", PARAM_INT) as $time) {
+        foreach (required_param_array("sectiontimes", PARAM_TEXT) as $time) {
             $times[$count] = $time;
             $count++;
         }
 
+        // Zuerst den Haupt-Datensatz einfügen, um die ID zu bekommen.
         $id = $DB->insert_record("teletask", $teletask);
 
+        // Dann die Sektionen mit der neuen ID verknüpfen.
         $sectiondb = new stdClass();
         $sectiondb->video_id = $id;
         for ($i = 0; $i < count($sections); $i++) {
@@ -71,22 +92,36 @@ function teletask_add_instance($teletask) {
 }
 
 /**
- * Update a teletask instance
+ * Update a teletask instance.
  *
- * This is done by calling the update_instance() method of the assignment type class
- * @param stdClass $teletask Object of teletask activity
- * @return int The instance id of the new assignment
+ * @param stdClass $teletask a data object from the form
+ * @param mod_teletask_mod_form $mform the form instance
+ * @return bool success
  */
-function teletask_update_instance($teletask) {
+function teletask_update_instance($teletask, $mform = null) {
     global $DB;
 
     $teletask->id = $teletask->instance;
     $teletask->timemodified = time();
 
+    // =========================================================================
+    // === KORREKTUR 1: Verarbeitet die Daten des Standard-Intro-Editors ===
+    if (isset($teletask->intro['text'])) {
+        $teletask->introformat = $teletask->intro['format'];
+        $teletask->intro = $teletask->intro['text'];
+    }
+
+    // =========================================================================
+    // === KORREKTUR 2: Verarbeitet die Daten des neuen 'description_new' Editors ===
+    if (isset($teletask->description_new['text'])) {
+        $teletask->description_newformat = $teletask->description_new['format'];
+        $teletask->description_new = $teletask->description_new['text'];
+    }
+    // =========================================================================
+
     // Update Sections (Remove and add again).
-    // Remove.
-    $DB->delete_records("teletask_sections", array("video_id" => "$teletask->id"));
-    // Add.
+    $DB->delete_records("teletask_sections", array("video_id" => $teletask->id));
+
     if (isset($_POST["sections"])) {
         $count = 0;
         $sections = array();
@@ -98,7 +133,7 @@ function teletask_update_instance($teletask) {
 
         $count = 0;
         $times = array();
-        foreach (required_param_array("sectiontimes", PARAM_INT) as $time) {
+        foreach (required_param_array("sectiontimes", PARAM_TEXT) as $time) {
             $times[$count] = $time;
             $count++;
         }
@@ -118,9 +153,8 @@ function teletask_update_instance($teletask) {
 }
 
 /**
- * Delete a teletask instance
+ * Delete a teletask instance.
  *
- * This is done by calling the delete_instance() method of the assignment type class
  * @param int $id id of the teletask activity that is going to be deleted
  * @return boolean Returns if the action was successful or not
  */
@@ -143,9 +177,8 @@ function teletask_delete_instance($id) {
 }
 
 /**
- * Retunring the features of the teletask activity
- * 
- * This is done by calling the supports() method of the assignment type class
+ * Returning the features of the teletask activity.
+ *
  * @param string $feature FEATURE_xx constant for requested feature
  * @return mixed True if module supports feature, null if doesn't know
  */
@@ -153,49 +186,10 @@ function teletask_supports($feature) {
     switch($feature) {
         case FEATURE_BACKUP_MOODLE2:
             return true;
+
+        case FEATURE_COMPLETION_TRACKS_VIEWS:
+            return true;
         default:
             return null;
     }
-}
-
-/**
- * Returns course module info for the course page (Moodle 4.x+).
- * @param object $coursemodule
- * @return cached_cm_info|null
- */
-function teletask_get_coursemodule_info($coursemodule) {
-    // Stub for Moodle 4.x compatibility. Add custom summary or icon if needed.
-    return null;
-}
-
-/**
- * Allows dynamic modification of the course module info (Moodle 4.x+).
- * @param cm_info $cm
- */
-function teletask_cm_info_dynamic(cm_info $cm) {
-    // Stub for Moodle 4.x compatibility. Add dynamic info if needed.
-}
-
-/**
- * Called when viewing the activity (Moodle 4.x+).
- * @param cm_info $cm
- */
-function teletask_cm_info_view(cm_info $cm) {
-    // Stub for Moodle 4.x compatibility. Add view tracking if needed.
-}
-
-/**
- * File serving support for the module (Moodle 4.x+).
- * @param stdClass $course
- * @param stdClass $cm
- * @param stdClass $context
- * @param string $filearea
- * @param array $args
- * @param bool $forcedownload
- * @param array $options
- * @return bool
- */
-function teletask_pluginfile($course, $cm, $context, $filearea, $args, $forcedownload, array $options = array()) {
-    // Stub for Moodle 4.x compatibility. Implement if you need to serve files.
-    return false;
 }

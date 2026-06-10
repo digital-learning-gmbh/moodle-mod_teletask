@@ -36,7 +36,7 @@ define("moxie/core/utils/Env", [
 	        MODEL       = 'model',
 	        NAME        = 'name',
 	        TYPE        = 'type',
-	        VENDOR      = 'vendor',
+	        VENDOR      = 'libs',
 	        VERSION     = 'version',
 	        ARCHITECTURE= 'architecture',
 	        CONSOLE     = 'console',
@@ -180,7 +180,7 @@ define("moxie/core/utils/Env", [
 	                model : {
 	                    'Evo Shift 4G' : '7373KT'
 	                },
-	                vendor : {
+	                libs : {
 	                    'HTC'       : 'APA',
 	                    'Sprint'    : 'Sprint'
 	                }

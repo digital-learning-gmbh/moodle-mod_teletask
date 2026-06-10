@@ -64,5 +64,33 @@ function xmldb_teletask_upgrade($oldversion) {
     // Moodle v2.8.0 release upgrade line.
     // Put any upgrade step following this.
 
+
+ if ($oldversion < 2016030403) {
+
+        $table = new xmldb_table('teletask');
+
+        // Feld video_url_pip hinzufügen
+        $field_pip = new xmldb_field('video_url_pip', XMLDB_TYPE_TEXT, null, null, null, null, null, 'video_url_desktop');
+        if (!$dbman->field_exists($table, $field_pip)) {
+            $dbman->add_field($table, $field_pip);
+        }
+
+        // Feld description_new hinzufügen
+        $field_desc = new xmldb_field('description_new', XMLDB_TYPE_TEXT, null, null, null, null, null, 'introformat');
+        if (!$dbman->field_exists($table, $field_desc)) {
+            $dbman->add_field($table, $field_desc);
+        }
+        
+        // Feld description_newformat hinzufügen
+        $field_format = new xmldb_field('description_newformat', XMLDB_TYPE_INTEGER, '4', null, XMLDB_NOTNULL, true, '0', 'description_new');
+        if (!$dbman->field_exists($table, $field_format)) {
+            $dbman->add_field($table, $field_format);
+        }
+
+        upgrade_mod_savepoint(true, 2015090301, 'teletask');
+    }
+
+
+
     return true;
 }

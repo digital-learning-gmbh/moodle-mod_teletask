@@ -2,7 +2,7 @@
 (function() {
 	var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
-	define(["vendor/screenfull"], function(screenful) {
+	define(["libs/screenfull"], function(screenful) {
 
 	/*
 	This class is in charge of the user interface. It handles:
